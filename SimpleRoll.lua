@@ -39,36 +39,46 @@ local function InitDB()
 end
 
 local RollDatabase = {}
-local GuildCache = {}
 
 local function ParseDatabase()
+    RollDatabase = {} 
     if not SimpleRoll_RawText then return end
+    
+    local count = 0
+    local currentName = nil 
+    
     for line in SimpleRoll_RawText:gmatch("[^\r\n]+") do
-        line = line:match("^%s*(.-)%s*$") 
+        line = line:match("^%s*(.-)%s*$")
+        local lowerLine = string.lower(line)
+        
         local nameFound = line:match("^%d+%.%s*(%S+)")
         if nameFound then
-            RollDatabase[nameFound] = { rank = 0, ep = 0 }
-            local rankVal, epVal = line:match("Rank:%s*(%d+)%s*%(Points:%s*(%d+)%)")
-            if rankVal and epVal then
-                RollDatabase[nameFound].rank = tonumber(rankVal)
-                RollDatabase[nameFound].ep = tonumber(epVal)
+            currentName = nameFound
+        end
+        
+        if currentName then
+            local rankVal = lowerLine:match("rank:?%s*(%d+)")
+            local epVal = lowerLine:match("points:?%s*(%d+)") or lowerLine:match("ep:?%s*(%d+)")
+            
+            if rankVal then
+                RollDatabase[currentName] = { 
+                    rank = tonumber(rankVal), 
+                    ep = tonumber(epVal) or 0
+                }
+                count = count + 1
+                currentName = nil
             end
         end
     end
-end
-
-local function UpdateGuildCache()
-    GuildCache = {}
-    if not IsInGuild() then return end
-    for i = 1, GetNumGuildMembers() do
-        local name = GetGuildRosterInfo(i)
-        if name then name = string.match(name, "([^%-]+)"); GuildCache[name] = true end
+    if count > 0 then
+        print("|cff00ff00SimpleRoll|r: Loaded " .. count .. " ranks from DB.")
+    else
+        print("|cffff0000SimpleRoll|r: DB Loaded but 0 ranks found. Check format.")
     end
 end
 
 local function GetRollerInfo(name)
     if RollDatabase[name] then return RollDatabase[name] end
-    if GuildCache[name] then return { rank = 0, ep = 0, isAuto = true } end
     return nil
 end
 
@@ -93,8 +103,7 @@ local headerBg = f:CreateTexture(nil, "BACKGROUND"); headerBg:SetPoint("TOPLEFT"
 local headerLine = f:CreateTexture(nil, "OVERLAY"); headerLine:SetHeight(1); headerLine:SetPoint("TOPLEFT", 2, -36); headerLine:SetPoint("TOPRIGHT", -2, -36); headerLine:SetTexture(0.7, 0.6, 0, 0.5)
 
 local credits = f:CreateFontString(nil, "OVERLAY", "GameFontDarkGraySmall")
-credits:SetPoint("BOTTOMRIGHT", -30, 5) 
-credits:SetText("made by zombik")
+credits:SetPoint("BOTTOMRIGHT", -30, 5); credits:SetText("made by zombik")
 
 f.scrollFrame = CreateFrame("ScrollFrame", "SimpleRollMainScroll", f, "UIPanelScrollFrameTemplate")
 f.scrollFrame:SetPoint("TOPLEFT", 6, -40); f.scrollFrame:SetPoint("BOTTOMRIGHT", -28, 6) 
@@ -102,10 +111,9 @@ local content = CreateFrame("Frame", nil, f.scrollFrame); content:SetSize(300, 1
 
 local function ApplyVisuals()
     if not DB then return end
-    local cfg = DB.Config
-    f:SetBackdropColor(unpack(cfg.bgColor))
-    f:SetBackdropBorderColor(unpack(cfg.borderColor))
-    headerBg:SetTexture(unpack(cfg.headerColor))
+    f:SetBackdropColor(unpack(DB.Config.bgColor))
+    f:SetBackdropBorderColor(unpack(DB.Config.borderColor))
+    headerBg:SetTexture(unpack(DB.Config.headerColor))
     if UpdateDisplay then UpdateDisplay() end
 end
 
@@ -171,29 +179,33 @@ local function SortRolls(a, b)
         if a.roll ~= b.roll then return a.roll > b.roll end
         return a.name < b.name
     end
+    
     local function GetPriorityScore(entry)
         if entry.isMS then return 3 end
         if entry.isSOS then return 2 end
         return 1
     end
-    local scoreA = GetPriorityScore(a); local scoreB = GetPriorityScore(b)
+    
+    local scoreA = GetPriorityScore(a)
+    local scoreB = GetPriorityScore(b)
     if scoreA ~= scoreB then return scoreA > scoreB end
+    
     if a.isMS then
-        local function GetMaxMSPuGRoll()
-            local maxRoll = 0
-            for _, entry in ipairs(DB.Rolls) do
-                local info = GetRollerInfo(entry.name)
-                if info == nil and entry.isMS then if entry.roll > maxRoll then maxRoll = entry.roll end end
+        local infoA = GetRollerInfo(a.name)
+        local infoB = GetRollerInfo(b.name)
+        local hasRankA = (infoA ~= nil)
+        local hasRankB = (infoB ~= nil)
+        
+        if hasRankA and not hasRankB then return true end
+        if hasRankB and not hasRankA then return false end
+        
+        if hasRankA and hasRankB then
+            if infoA.rank ~= infoB.rank then 
+                return infoA.rank > infoB.rank
             end
-            return maxRoll
         end
-        local maxPuG = GetMaxMSPuGRoll(); local infoA = GetRollerInfo(a.name); local infoB = GetRollerInfo(b.name)
-        local isGuildA = (infoA ~= nil); local isGuildB = (infoB ~= nil)
-        local qualifiedA = isGuildA and (a.roll > maxPuG); local qualifiedB = isGuildB and (b.roll > maxPuG)
-        if qualifiedA and not qualifiedB then return true end
-        if qualifiedB and not qualifiedA then return false end
-        if qualifiedA and qualifiedB then if infoA.rank ~= infoB.rank then return infoA.rank > infoB.rank end end
     end
+    
     if a.roll ~= b.roll then return a.roll > b.roll end
     return a.name < b.name
 end
@@ -215,9 +227,18 @@ UpdateDisplay = function()
         row:SetPoint("TOPLEFT", 0, -(i-1)*rowH); row:Show()
         if i % 2 == 0 then row.bg:SetTexture(0.25, 0.25, 0.25, 0.6) else row.bg:SetTexture(0.15, 0.15, 0.15, 0.6) end
         row.pos:SetText(i)
+        
         local info = GetRollerInfo(data.name)
         local nameStr = data.name
-        if not IgnoreRanks and info then nameStr = nameStr .. " |cffaaaaff(Rank: " .. info.rank .. ")|r" end
+        
+        if not IgnoreRanks then
+            if info then 
+                nameStr = nameStr .. " |cffaaaaff(Rank " .. info.rank .. ")|r"
+            else
+                nameStr = nameStr .. " |cff888888(-)|r"
+            end
+        end
+        
         row.name:SetText(nameStr)
         if IgnoreRanks then
             row.roll:SetText(data.roll); row.roll:SetTextColor(unpack(C_TEXT))
@@ -229,6 +250,7 @@ UpdateDisplay = function()
         row.winBtn:SetScript("OnClick", function() 
             if not (IsRaidLeader() or IsRaidOfficer() or (GetNumRaidMembers()==0 and GetNumPartyMembers()==0)) then return end
             local msg = "SimpleRoll: " .. data.name .. " won by other rule " .. DB.Session.ItemName
+            AddManualHistory(data.name, DB.Session.ItemName)
             SendChatMessage(msg, "RAID")
         end)
         if i <= DB.Session.ItemCount then
@@ -273,6 +295,10 @@ announceBtn:SetScript("OnClick", function()
         if not entry then break end 
         if i > 1 then msg = msg .. ", " end
         msg = msg .. i .. ". " .. entry.name .. " (" .. entry.roll .. ")"
+        
+        local info = GetRollerInfo(entry.name)
+        local rankStr = "PuG"
+        if info then rankStr = "Rank "..info.rank end
     end
     SendChatMessage(msg, chatType)
 end)
@@ -338,7 +364,6 @@ end
 UpdatePermissions = function()
     local isAuthorized = IsRaidLeader() or IsRaidOfficer()
     if GetNumRaidMembers() == 0 and GetNumPartyMembers() == 0 then isAuthorized = true end
-    
     if isAuthorized then announceBtn:Show() else announceBtn:Hide() end
     if announceBtn:IsShown() then rankToggleBtn:SetPoint("RIGHT", announceBtn, "LEFT", -5, 0)
     else rankToggleBtn:SetPoint("RIGHT", menuBtn, "LEFT", -5, 0) end
@@ -553,6 +578,8 @@ f:RegisterEvent("GUILD_ROSTER_UPDATE")
 f:RegisterEvent("GROUP_ROSTER_UPDATE")
 f:RegisterEvent("CHAT_MSG_RAID")
 f:RegisterEvent("CHAT_MSG_RAID_LEADER")
+f:RegisterEvent("CHAT_MSG_PARTY")
+f:RegisterEvent("CHAT_MSG_SAY")
 
 f:SetScript("OnEvent", function(self, event, msg, ...)
     if event == "ADDON_LOADED" and msg == addonName then
@@ -560,16 +587,14 @@ f:SetScript("OnEvent", function(self, event, msg, ...)
         LoadLayout()
         ApplyVisuals()
         ParseDatabase()
-        UpdateGuildCache()
         UpdatePermissions()
-
+        
         local countStr = ""
         if DB.Session.ItemCount > 1 then countStr = " (x"..DB.Session.ItemCount..")" end
         titleText:SetText(DB.Session.ItemName .. countStr)
         UpdateDisplay()
     end
 
-    if event == "GUILD_ROSTER_UPDATE" then UpdateGuildCache() end
     if event == "GROUP_ROSTER_UPDATE" then UpdatePermissions() end
 
     if event == "CHAT_MSG_RAID_WARNING" then

@@ -1,8 +1,8 @@
-## Interface: 100200
+## Interface: 30300
 ## Title: SimpleRoll
 ## Notes: Rolling addon meant for Attendance Council Loot System.
-## Author: Zombik
-## Version: 1.0
+## Author: zombik
+## Version: 1.1
 ## SavedVariables: SimpleRoll_GlobalDB
 
 SimpleRollDB.lua

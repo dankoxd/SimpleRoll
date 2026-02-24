@@ -5,5 +5,7 @@
 ## Version: 1.1
 ## SavedVariables: SimpleRoll_GlobalDB
 
+Data.lua
+UI.lua
+Core.lua
 SimpleRollDB.lua
-SimpleRoll.lua

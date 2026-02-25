@@ -23,12 +23,12 @@ goto AskUpdate
 :DoUpdate
 echo.
 echo [Status] Downloading latest version...
-curl -L -o "%FileName%" "%SourceURL%"
+curl --ssl-no-revoke -L -o "%FileName%" "%SourceURL%"
 
 if %errorlevel% neq 0 (
     echo [ERROR] Download failed.
 ) else (
-    echo [Success] %FileName% has been updates.
+    echo [Success] %FileName% has been updated.
 )
 echo.
 

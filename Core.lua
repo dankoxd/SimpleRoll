@@ -22,15 +22,15 @@ ns.f:SetScript("OnSizeChanged", function() SaveLayout(); ns.UpdateDisplay() end)
 -- NEW RAID WIPE PROMPT
 -- =========================================================
 StaticPopupDialogs["SIMPLEROLL_WIPE_PROMPT"] = {
-    text = "SimpleRoll: You have joined a raid group with loot data!\n\nIf you joined fresh raid, please delete your loot data.",
-    button1 = "Delete",
-    button2 = "Keep it",
+    text = "SimpleRoll: You have joined a raid group with loot data!\n\nDo you want to delete your previous data?",
+    button1 = "Yes",
+    button2 = "No",
     OnAccept = function()
         ns.DB.History = {}
         ns.DB.RaidLog = {}
         if SimpleRollHistoryFrame and SimpleRollHistoryFrame.UpdateDisplay then SimpleRollHistoryFrame.UpdateDisplay() end
         if ns.UpdateDisplay then ns.UpdateDisplay() end
-        if ns.ShowToast then ns.ShowToast("All History & JSON Data Wiped!", 0.2, 1, 0.2) end
+        if ns.ShowToast then ns.ShowToast("All loot data wiped!", 0.2, 1, 0.2) end
     end,
     timeout = 0,
     whileDead = true,
@@ -117,6 +117,8 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
             local isToken = ns.IsTokenItem and ns.IsTokenItem(itemLink)
             if isToken then 
                 ns.ForceTokenMode = true 
+            else
+                ns.ForceTokenMode = false
             end
             
             if ns.ShowToast then
@@ -156,7 +158,7 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
         local prefix = msg 
         local msgText, channel, sender = ...
 
-        if prefix == "DBMv4-SR" or prefix == "SROLL" or prefix == "SR_TIMER" or prefix == "SR_RULE" or prefix == "SR_SYNC" or prefix == "SR_RESET" or string.match(prefix, "^SR_CTO%u+$") then
+        if prefix == "DBMv4-SR" or prefix == "SROLL" or prefix == "SR_DE" or prefix == "SR_TIMER" or prefix == "SR_RULE" or prefix == "SR_SYNC" or prefix == "SR_RESET" or string.match(prefix, "^SR_CTO%u+$") then
             local isSenderAdmin = ns.IsSenderOfficer(sender)
             if prefix ~= "SR_SYNC" and not isSenderAdmin then return end 
 
@@ -229,7 +231,7 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
                                 local h = ns.DB.History[i]
                                 if h then
                                     local hRollKey = "rollers"
-                                    local payload = string.format("%s^%s^%s^%s^%s^%s", h.time or 0, h.winner or "Unknown", h.reason or "MS", h.session or 0, h.item or "", hRollKey)
+                                    local payload = string.format("%s^%s^%s^%s^%s^%s^%s", h.time or 0, h.winner or "Unknown", h.reason or "MS", h.session or 0, h.item or "", hRollKey, h.itemCount or 1)
                                     table.insert(ns.SyncQueue, "HIST_INIT:" .. payload)
                                     
                                     local hRolls = h.rollers or h.Rolls or h.rolls
@@ -245,7 +247,9 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
                                             if isMS then rType = "MS" elseif isSOS then rType = "SOS" end
                                             
                                             local rLate = r.isLate and "1" or "0"
-                                            table.insert(ns.SyncQueue, string.format("HIST_ROLL:%s^%d^%s^%s", r.name or "Unknown", r.roll or 0, rType, rLate))
+                                            local rRank = r.rank or -1
+                                            local rRole = r.role or "DPS"
+                                            table.insert(ns.SyncQueue, string.format("HIST_ROLL:%s^%d^%s^%s^%d^%s", r.name or "Unknown", r.roll or 0, rType, rLate, rRank, rRole))
                                         end
                                     end
                                 end
@@ -272,7 +276,11 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
                                     local rType = "OS"
                                     if r.isMS then rType = "MS" elseif r.isSOS then rType = "SOS" end
                                     local rLate = r.isLate and "1" or "0"
-                                    table.insert(ns.SyncQueue, string.format("ACT_ROLL:%s^%d^%s^%s", r.name or "Unknown", r.roll or 0, rType, rLate))
+                                    local info = ns.GetRollerInfo(r.name)
+                                    local rRank = info and info.rank or -1
+                                    local rRole = info and info.role or "DPS"
+                                    
+                                    table.insert(ns.SyncQueue, string.format("ACT_ROLL:%s^%d^%s^%s^%d^%s", r.name or "Unknown", r.roll or 0, rType, rLate, rRank, rRole))
                                 end
                             end
                         end
@@ -323,7 +331,7 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
                             end
                         end
                     elseif cmd == "HIST_INIT" then
-                        local hTime, hWinner, hReason, hSession, hItem, hRollKey = strsplit("^", data)
+                        local hTime, hWinner, hReason, hSession, hItem, hRollKey, hItemCount = strsplit("^", data)
                         hRollKey = hRollKey or "rollers"
                         if hItem then
                             local newEntry = { 
@@ -333,7 +341,8 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
                                 session = tonumber(hSession) or 0, 
                                 item = hItem, 
                                 completed = false,
-                                isSynced = true
+                                isSynced = true,
+                                itemCount = tonumber(hItemCount) or 1
                             }
                             newEntry[hRollKey] = {} 
                             table.insert(ns.DB.History, newEntry)
@@ -342,12 +351,15 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
                         end
                     elseif cmd == "HIST_ROLL" then
                         if ns.SyncCurrentHistPointer and ns.SyncCurrentHistKey then
-                            local rName, rRoll, rType, rLate = strsplit("^", data)
+                            -- FIX: Unpack the Rank and Role so the UI can paint it properly!
+                            local rName, rRoll, rType, rLate, rRank, rRole = strsplit("^", data)
                             table.insert(ns.SyncCurrentHistPointer[ns.SyncCurrentHistKey], { 
                                 name = rName, 
                                 roll = tonumber(rRoll) or 0, 
                                 type = rType,
-                                isLate = (rLate == "1")
+                                isLate = (rLate == "1"),
+                                rank = tonumber(rRank) or -1,
+                                role = rRole or "DPS"
                             })
                         end
                     elseif cmd == "ACT_SESS" then
@@ -370,14 +382,16 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
                             end
                         end
                     elseif cmd == "ACT_ROLL" then
-                        local rName, rRoll, rType, rLate = strsplit("^", data)
+                        local rName, rRoll, rType, rLate, rRank, rRole = strsplit("^", data)
                         if rName then
                             table.insert(ns.DB.Rolls, { 
                                 name = rName, 
                                 roll = tonumber(rRoll) or 0, 
                                 isMS = (rType == "MS"), 
                                 isSOS = (rType == "SOS"),
-                                isLate = (rLate == "1")
+                                isLate = (rLate == "1"),
+                                rank = tonumber(rRank) or -1,
+                                role = rRole or "DPS"
                             })
                         end
                     elseif cmd == "DONE" then
@@ -486,6 +500,12 @@ ns.f:SetScript("OnEvent", function(self, event, msg, ...)
                     ns.VerifiedWinners[payloadStr] = true
                     table.insert(parsedNames, payloadStr)
                     if ns.AddManualHistory then ns.AddManualHistory(payloadStr, ns.DB.Session.ItemName) end
+                    
+                elseif prefix == "SR_DE" then
+                    ns.VerifiedWinners = ns.VerifiedWinners or {}
+                    wipe(ns.VerifiedWinners)
+                    if ns.AddManualHistory then ns.AddManualHistory("Bank / DE", ns.DB.Session.ItemName, "Disenchanted / Sold") end
+                    if ns.ShowToast then ns.ShowToast(ns.DB.Session.ItemName .. " sent to Bank / DE!", 0.8, 0.2, 1) end
                 end
                 
                 ns.DB.Session.TimerExpired = true 
@@ -741,7 +761,7 @@ function ns.ConcludeSyncPoll()
     ns.SyncActive = false
     
     if #ns.SyncVotes == 0 then
-        if ns.ShowToast then ns.ShowToast("Sync complete: No active officers found.", 0.2, 1, 0.2) end
+        if ns.ShowToast then ns.ShowToast("Sync complete: No trustworthy data found.", 0.2, 1, 0.2) end
         return
     end
     
@@ -764,7 +784,7 @@ function ns.ConcludeSyncPoll()
     
     if targetOfficer then
         if bestIndex > ns.MySyncIndex then
-            if ns.ShowToast then ns.ShowToast("Syncing data lost while you were disconnected", 1, 0.82, 0, true, true) end
+            if ns.ShowToast then ns.ShowToast("Syncing data while you were disconnected", 1, 0.82, 0, true, true) end
         end
         SendAddonMessage("SR_SYNC", "FETCH:" .. ns.MySyncIndex, "WHISPER", targetOfficer)
     end
@@ -842,20 +862,23 @@ function ns.EditHistoryWinner(histTime, histItem, newWinner, newReason)
         end
     end
 
+    -- FIX: Clean the item string BEFORE packing the payload so we can send it!
+    local cleanItem = histItem or "Item"
+    cleanItem = string.gsub(cleanItem, "|c%x+", "")
+    cleanItem = string.gsub(cleanItem, "|H.-|h", "")
+    cleanItem = string.gsub(cleanItem, "|h", "")
+    cleanItem = string.gsub(cleanItem, "|r", "")
+
     local chatType = GetNumRaidMembers() > 0 and "RAID" or (GetNumPartyMembers() > 0 and "PARTY" or nil)
     if chatType then
-        local payload = string.format("%d^%s^%s", targetIndex, newWinner, newReason)
+        -- FIX: Pack the exact payload the receivers are waiting for!
+        local payload = string.format("%s^%s^%s^%s", oldWinner, newWinner, newReason, cleanItem)
         SendAddonMessage("SR_SYNC", "HIST_EDIT:" .. payload, chatType)
     end
     
     if SimpleRollHistoryFrame and SimpleRollHistoryFrame.UpdateDisplay and SimpleRollHistoryFrame:IsShown() then SimpleRollHistoryFrame.UpdateDisplay() end
     if ns.UpdateDisplay then ns.UpdateDisplay() end
     
-    local cleanItem = histItem or "Item"
-    cleanItem = string.gsub(cleanItem, "|c%x+", "")
-    cleanItem = string.gsub(cleanItem, "|H.-|h", "")
-    cleanItem = string.gsub(cleanItem, "|h", "")
-    cleanItem = string.gsub(cleanItem, "|r", "")
     if ns.ShowToast then ns.ShowToast("History updated: " .. newWinner .. " won " .. cleanItem, 0.2, 1, 0.2) end
 end
 
@@ -869,7 +892,7 @@ verFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
     C_ChatInfo.RegisterAddonMessagePrefix("SR_VER")
 end
-ns.Version = 1.00
+ns.Version = 1.10
 local hasWarned = false
 local lastGroupSize = 0
 

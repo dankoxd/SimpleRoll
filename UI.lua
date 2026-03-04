@@ -43,7 +43,7 @@ footerBg:SetTexture(0, 0, 0, 0.9)
 
 local credits = f:CreateFontString(nil, "OVERLAY", "GameFontDarkGraySmall")
 credits:SetPoint("RIGHT", footerBg, "RIGHT", -25, 0) 
-credits:SetText("made by zombik")
+credits["\83\101\116\84\101\120\116"](credits, "\109\97\100\101\32\98\121\32\122\111\109\98\105\107")
 
 f.scrollFrame = CreateFrame("ScrollFrame", "SimpleRollMainScroll", f, "UIPanelScrollFrameTemplate")
 ns.scrollFrame = f.scrollFrame
@@ -234,7 +234,7 @@ function ns.UpdateHistoryForSession(newWinners, itemLink)
     end 
 
     for _, winData in ipairs(newWinners) do
-        local entry = { session = ns.DB.Session.CurrentTime, time = timestamp, winner = winData.name, item = itemLink, reason = winData.reason, completed = false, rollers = snapshotRollers }
+        local entry = { session = ns.DB.Session.CurrentTime, time = timestamp, winner = winData.name, item = itemLink, reason = winData.reason, completed = false, rollers = snapshotRollers, itemCount = ns.DB.Session.ItemCount }
         
         table.insert(ns.DB.History, entry)
         if not ns.DB.Config.disableJSON then 
@@ -244,10 +244,28 @@ function ns.UpdateHistoryForSession(newWinners, itemLink)
     if hf and hf:IsShown() then hf.UpdateDisplay() end
 end
 
-function ns.AddManualHistory(winnerName, itemLink)
+function ns.AddManualHistory(winnerName, itemLink, customReason)
     if not ns.DB.RaidLog then ns.DB.RaidLog = {} end
+    local i = 1
+    while i <= #ns.DB.History do if ns.DB.History[i].session == ns.DB.Session.CurrentTime then table.remove(ns.DB.History, i) else i = i + 1 end end
+    
+    local j = 1
+    while j <= #ns.DB.RaidLog do if ns.DB.RaidLog[j].session == ns.DB.Session.CurrentTime then table.remove(ns.DB.RaidLog, j) else j = j + 1 end end
 
-    local entry = { session = ns.DB.Session.CurrentTime, time = time(), winner = winnerName, item = itemLink, reason = "Manual/Other Rule", completed = false }
+    local snapshotRollers = {}
+    if ns.DB.Rolls then
+        for _, r in ipairs(ns.DB.Rolls) do
+            local info = ns.GetRollerInfo(r.name)
+            local rnk = info and info.rank or -1 
+            local rol = info and info.role or "DPS"
+            local rollType = "OS"
+            if r.isMS then rollType = "MS" elseif r.isSOS then rollType = "SOS" end
+            table.insert(snapshotRollers, { name = r.name, roll = r.roll, type = rollType, rank = rnk, role = rol })
+        end 
+    end
+
+    local rsn = customReason or "Manual"
+    local entry = { session = ns.DB.Session.CurrentTime, time = time(), winner = winnerName, item = itemLink, reason = rsn, completed = false, itemCount = ns.DB.Session.ItemCount, rollers = snapshotRollers }
     
     table.insert(ns.DB.History, entry)
     if not ns.DB.Config.disableJSON then 
@@ -303,10 +321,16 @@ ns.UpdateDisplay = function()
         histData = ns.DB.History[ns.HistoryPointer]
         displayRolls = histData.rollers or {}
         
-        local tagText = histData.isSynced and "(Synced)" or "(History)"
-        displayTitle = (histData.item or "Unknown Item") .. " |cff888888" .. tagText .. "|r"
+        local tagText = histData.isSynced and "|cff888888(Synced)|r" or "|cff888888(History)|r"
+        if histData.winner == "Bank / DE" then
+            tagText = tagText .. " |cffff2222(Disenchanted / Sold)|r"
+        end
         
-        displayCount = 1
+        displayTitle = (histData.item or "Unknown Item") .. " " .. tagText
+        
+
+        displayCount = histData.itemCount or 1
+        
         if ns.HistoryPointer == 1 then ns.prevBtn:Disable() else ns.prevBtn:Enable() end
         ns.nextBtn:Enable()
     else
@@ -384,9 +408,15 @@ row:SetPoint("TOPLEFT", 0, -(i-1)*rowH); row:Show()
             else nameStr = nameStr .. " |cff888888(PuG)|r" end
         else
             if not ns.IgnoreRanks then
-                if rollerInfo then
-                    if rollerInfo.rank > 0 then nameStr = nameStr .. " |cffaaaaff(Rank " .. rollerInfo.rank .. ")|r" else nameStr = nameStr .. " |cffaaaaff(Rank 0)|r" end
-                else nameStr = nameStr .. " |cff888888(PuG)|r" end
+                local displayRank = (rollerInfo and rollerInfo.rank) or data.rank
+                
+                if displayRank then
+                    if displayRank > 0 then nameStr = nameStr .. " |cffaaaaff(Rank " .. displayRank .. ")|r" 
+                    elseif displayRank == 0 then nameStr = nameStr .. " |cffaaaaff(Rank 0)|r" 
+                    else nameStr = nameStr .. " |cff888888(PuG)|r" end
+                else 
+                    nameStr = nameStr .. " |cff888888(PuG)|r" 
+                end
             end
         end
         
@@ -415,7 +445,7 @@ row:SetPoint("TOPLEFT", 0, -(i-1)*rowH); row:Show()
                     ns.EditHistoryWinner(histData.time, histData.item, data.name, "Manual Reassign")
                 end
             else
-                local msg = "[SR] " .. data.name .. " won by other rule " .. ns.DB.Session.ItemName
+                local msg = "[SR] " .. data.name .. " won by force " .. ns.DB.Session.ItemName
                 ns.VerifiedWinners = ns.VerifiedWinners or {}
                 wipe(ns.VerifiedWinners)
                 ns.VerifiedWinners[data.name] = true
@@ -497,7 +527,9 @@ ns.menuBtn = menuBtn
 menuBtn:SetSize(24, 24)
 menuBtn:SetPoint("RIGHT", closeBtn, "LEFT", -5, 0)
 
--- hamburger
+-- oh my god, did he just say that his last name is burger?
+-- is his middle name cheese?
+-- does he also come with fries?
 local function CreateMenuLine(yOffset)
     local line = menuBtn:CreateTexture(nil, "ARTWORK")
     line:SetSize(14, 2)
@@ -531,8 +563,62 @@ local announceBtn = CreateFrame("Button", nil, f)
 ns.announceBtn = announceBtn 
 announceBtn:SetSize(24, 24); announceBtn:SetPoint("RIGHT", menuBtn, "LEFT", -5, 0)
 announceBtn:SetNormalTexture("Interface\\Buttons\\UI-GuildButton-MOTD-Up"); announceBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
-announceBtn:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText("Announce Winner"); GameTooltip:Show() end)
+local deFrame = CreateFrame("Frame", nil, f)
+ns.deFrame = deFrame
+deFrame:SetSize(32, 32)
+deFrame:SetPoint("BOTTOM", announceBtn, "TOP", 0, 0)
+deFrame:Hide()
+
+local deBtn = CreateFrame("Button", nil, deFrame)
+deBtn:SetSize(22, 22)
+deBtn:SetPoint("CENTER")
+deBtn:SetNormalTexture("Interface\\Icons\\INV_Enchant_DustIllusion")
+deBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+
+deBtn:SetScript("OnEnter", function(self) 
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText("Send to Bank / Disenchant")
+    GameTooltip:Show()
+end)
+deBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+deBtn:SetScript("OnClick", function()
+        toastFrame.isTimer = false; ns.AmITimerHost = false
+        
+        ns.VerifiedWinners = ns.VerifiedWinners or {}
+        wipe(ns.VerifiedWinners)
+        
+        local chatType = "SAY"
+        if GetNumRaidMembers() > 0 then chatType = "RAID" elseif GetNumPartyMembers() > 0 then chatType = "PARTY" end
+        
+        local msg = "[SR] " .. ns.DB.Session.ItemName .. " has been sent to Bank / Disenchanted."
+        SendChatMessage(msg, chatType)
+        
+        if ns.AddManualHistory then ns.AddManualHistory("Bank / DE", ns.DB.Session.ItemName, "Disenchanted / Sold") end
+        
+        if ns.ShowToast then ns.ShowToast(ns.DB.Session.ItemName .. " sent to Bank / DE!", 0.8, 0.2, 1) end
+        
+        if ns.UpdateDisplay then ns.UpdateDisplay() end 
+        
+        local sessionID = tostring(math.floor(ns.DB.Session.CurrentTime))
+        local payload = sessionID .. ":Bank / DE"
+        if chatType == "RAID" or chatType == "PARTY" then SendAddonMessage("SR_DE", payload, chatType)
+        else SendAddonMessage("SR_DE", payload, "WHISPER", UnitName("player")) end
+        
+        deFrame:Hide()
+    end)
+announceBtn:SetScript("OnEnter", function(self) 
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:SetText("Announce Winner")
+    GameTooltip:Show() 
+    deFrame:Show()
+end)
 announceBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    deFrame:SetScript("OnUpdate", function(self)
+        if not announceBtn:IsMouseOver() and not self:IsMouseOver() then
+            self:Hide()
+        end
+    end)
+
 announceBtn:SetScript("OnClick", function() 
     toastFrame.isTimer = false; ns.AmITimerHost = false
     table.sort(ns.DB.Rolls, ns.SortRolls) 
@@ -797,7 +883,7 @@ ns.ToggleAdminTools = function()
             return b
         end
         
-        CreateATBtn("Start JSON logging", -45, function()
+        CreateATBtn("Delete&Start JSON log", -45, function()
             if not raidPopup then
                 raidPopup = CreateFrame("Frame", nil, UIParent)
                 raidPopup:SetSize(300, 120); raidPopup:SetPoint("CENTER"); raidPopup:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -813,7 +899,7 @@ ns.ToggleAdminTools = function()
                 raidPopup.cancel = CreateFrame("Button", nil, raidPopup, "UIPanelButtonTemplate"); raidPopup.cancel:SetSize(80, 22); raidPopup.cancel:SetPoint("BOTTOMRIGHT", -40, 15); raidPopup.cancel:SetText("Cancel")
                 raidPopup.cancel:SetScript("OnClick", function() raidPopup:Hide() end)
             end
-            raidPopup.edit:SetText("ICC " .. date("%Y-%m-%d")); raidPopup:Show()
+            raidPopup.edit:SetText("RAID NAME " .. date("%Y-%m-%d")); raidPopup:Show()
         end)
         
         CreateATBtn("Export JSON", -75, function()
@@ -874,7 +960,6 @@ ns.ToggleMenu = function()
             menuFrame.btnReset:Show(); menuFrame.btnReset:SetPoint("TOP", menuFrame.btnAdminTools, "BOTTOM", 0, -5)
             menuFrame.btnSettings:SetPoint("TOP", menuFrame.btnReset, "BOTTOM", 0, -5)
         else
-            -- Raiders see a shorter menu
             menuFrame:SetHeight(85) 
             menuFrame.btnRaider:Show(); menuFrame.btnRaider:SetPoint("TOP", menuFrame.btnHistory, "BOTTOM", 0, -5)
             menuFrame.btnAdminTools:Hide(); menuFrame.btnReset:Hide()
@@ -919,7 +1004,29 @@ function ns.ShowHistEdit(hTime, hItem, oldWinner)
     histEditPopup.ok:SetScript("OnClick", function()
         local newName = histEditPopup.edit:GetText()
         if newName and newName ~= "" then
-            if ns.EditHistoryWinner then ns.EditHistoryWinner(hTime, hItem, newName, "Manual Reassign") end
+            local cleanInput = string.lower(newName)
+            local validName = nil
+            
+            if string.lower(UnitName("player")) == cleanInput then 
+                validName = UnitName("player")
+            elseif GetNumRaidMembers() > 0 then
+                for i=1, GetNumRaidMembers() do
+                    local n = GetRaidRosterInfo(i)
+                    if n and string.lower(n) == cleanInput then validName = n; break end
+                end
+            elseif GetNumPartyMembers() > 0 then
+                for i=1, GetNumPartyMembers() do
+                    local n = UnitName("party"..i)
+                    if n and string.lower(n) == cleanInput then validName = n; break end
+                end
+            end
+            
+            if not validName then
+                print("|cffff0000SimpleRoll:|r Player '" .. newName .. "' is not in your current group!")
+                return
+            end
+
+            if ns.EditHistoryWinner then ns.EditHistoryWinner(hTime, hItem, validName, "Manual Reassign") end
             histEditPopup:Hide()
         end
     end)
@@ -1208,7 +1315,7 @@ ns.ToggleSettings = function()
         
         local tChk = CreateFrame("CheckButton", "SimpleRoll_S_Toast", sf, "UICheckButtonTemplate")
         tChk:SetPoint("TOPLEFT", 30, -195)
-        tChk.text = tChk:CreateFontString(nil, "OVERLAY", "GameFontNormal"); tChk.text:SetPoint("LEFT", tChk, "RIGHT", 5, 0); tChk.text:SetText("Enable Footer Notifications")
+        tChk.text = tChk:CreateFontString(nil, "OVERLAY", "GameFontNormal"); tChk.text:SetPoint("LEFT", tChk, "RIGHT", 5, 0); tChk.text:SetText("Enable Notifications")
         tChk:SetScript("OnShow", function(self) self:SetChecked(not ns.DB.Config.disableToasts) end)
         tChk:SetScript("OnClick", function(self) 
             ns.DB.Config.disableToasts = not self:GetChecked() 

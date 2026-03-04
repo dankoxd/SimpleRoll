@@ -164,7 +164,15 @@ function ns.SortRolls(a, b)
         if a_Qualifies and not b_Qualifies then return true end
         if b_Qualifies and not a_Qualifies then return false end
         
-        -- Token Priority Check (Tank > Heal > DPS)
+        -- 1. RANK PRIORITY (Checked First!)
+        local rankA = infoA and infoA.rank or -1
+        local rankB = infoB and infoB.rank or -1
+        
+        if rankA ~= rankB then 
+            return rankA > rankB 
+        end
+
+        -- 2. TOKEN PRIORITY (Only checked if Ranks are identical!)
         local isToken = ns.ForceTokenMode or ns.IsTokenItem(ns.DB.Session.ItemName)
         if isToken then
             local roleScore = { TANK = 3, HEALER = 2, DPS = 1 }
@@ -172,12 +180,6 @@ function ns.SortRolls(a, b)
             local rB = 1; if infoB and infoB.role then rB = roleScore[infoB.role] or 1 end
             
             if rA ~= rB then return rA > rB end
-        end
-        local rankA = infoA and infoA.rank or 99
-        local rankB = infoB and infoB.rank or 99
-        
-        if rankA ~= rankB then 
-            return rankA < rankB 
         end
     end
     if a.roll ~= b.roll then

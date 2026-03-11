@@ -6,7 +6,7 @@ made by zombik
 discord: @fthepopulation
 
 ## Usage
-[Download Here](https://github.com/dankoxd/SimpleRoll/releases/download/1.1/SimpleRoll.zip)
+[Download Here](https://github.com/dankoxd/SimpleRoll/releases/download/1.2/SimpleRoll.zip)
  1. **Import** database of points into the SimpleRollDB.lua file 
  *(paste it between the [[ brackets ]] )*
  2. Addon automatically opens in-game, or you can type **/sr** or **/simpleroll**

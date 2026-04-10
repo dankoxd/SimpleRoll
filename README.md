@@ -7,27 +7,41 @@ discord: @fthepopulation
 
 ## Usage
 [Download Here](https://github.com/dankoxd/SimpleRoll/releases/download/1.2/SimpleRoll.zip)
- 1. **Import** database of points into the SimpleRollDB.lua file 
- *(paste it between the [[ brackets ]] )*
+### Regular raider
+ 1. **Run update.bat** to download/update current rank database 
  2. Addon automatically opens in-game, or you can type **/sr** or **/simpleroll**
- 3. If you want to roll an item, you must do "**/rw roll [item]**"
-4. The rolls will start to show. You must announce a winner via **"Announce Winner"**
-5. For new rolls, just **repeat** from step 3.
+ 3. Done. When you join a raid, the addon asks if you want to delete your roll database
 
-## Functions, Info
+### Loot Master
+ 4. Type **/sr mode sync** or **/sr mode async** to choose the mode *(async mode requires everyone to have the addon)*
+ 5. Start a New Raid in Admin Menu
+ 6. After you gather players, go to Raider List - Scan and mark players with their role *(DPS/Heal/Tank)*
+ 7. In sync mode, do /rw roll [item]  *(/rw roll 2x [item], /rw [item])*
+ 8. In async mode, Alt + L.Click to add items from your bags to populate Loot Board
+ 9. At the end of the raid, export JSON data
 
- - If a player is not a Raid Leader or don't have Assistance, he can't announce or make Raider List.
- - Roll Window
+### Functions, Info
+ - Addon Privileges, RL and assistants have access to everything.
+
+ - Main Roll Window
 	 - First roll of each player counts, duplicite rolls are ignored.
-	 - You can tick "Raw" to disregard Ranks.
-	 - If someone rolls and wins after announce, you must announce again
-	 - Quantity rolls e.g "*/rw roll 2x[item]*" *(extra spaces or order doesn't matter)*
-	 - Forced Win for token prio or other rules
+	 - You can tick "Raw" to disregard Ranks
+     - Knows all guild loot rules besides BiS>MS
+     - Ability to delete player rolls
+     - Ability to Force a Win
+ 	 - Optional Timer
+     
  - Raider List
-	 - Scan - imports all present people in the raid
-	 - Drag & Drop players from groups
+	 - Works just like the WoWs Raid window.
+	 - Scan - imports all present people in the raid group
 	 - Add players manually by double-clicking an empty space
 	 - Remove players manually by right-clicking
 	 - Export - a text summary of all players to give points to
- - Reset Rolls button in case something breaks.
- - Rolling window, Raider List and Loot History are saved and not lost after /reload or restart.
+     - Sync to send your Raider List for everyone 
+
+ - Loot History, Loot Table
+	- Works the same, displays differently
+    - You can reassign winners historically
+ 
+ - No data will be lost unless you delete your data in Settings
+ - If you got disconnected or joined late, the addon will gather all the data you don't have

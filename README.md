@@ -6,7 +6,8 @@ made by zombik
 discord: @fthepopulation
 
 ## Usage
-[Download Here](https://github.com/dankoxd/SimpleRoll/releases/download/1.2/SimpleRoll.zip)
+[Download Here](https://github.com/dankoxd/SimpleRoll/releases/download/production/SimpleRoll.zip)
+
 ### Regular raider
  1. **Run update.bat** to download/update current rank database *(you can hook it to WoW.exe or copy it into shell:startup folder)*
  2. Addon automatically opens in-game, or you can type **/sr** or **/simpleroll**

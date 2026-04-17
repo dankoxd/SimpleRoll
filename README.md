@@ -15,21 +15,26 @@ discord: @fthepopulation
 ### Loot Master
  4. Type **/sr mode sync** or **/sr mode async** to choose the mode *(async mode requires everyone to have the addon)*
  5. Start a New Raid in Admin Menu
- 6. After you gather players, go to Raider List - Scan and mark players with their role *(DPS/Heal/Tank)*
+ 6. Go to Raider List - Scan and mark players with their role and sync the List to others. *(DPS/Heal/Tank)*
  7. In sync mode, do /rw roll [item]  *(/rw roll 2x [item], /rw [item])*
  8. In async mode, Alt + L.Click to add items from your bags to populate Loot Board
- 9. At the end of the raid, export JSON data
+ 9. If you don't announce a winner for an item, it doesn't get saved into History.
+ 10. At the end of the raid, export JSON data
 
 ### Functions, Info
- - Addon Privileges, RL and assistants have access to everything.
+ - Addon Privileges; RL and assistants have access to everything.
+ - Guild index 1 or lower has admin access.
 
  - Main Roll Window
-	 - First roll of each player counts, duplicite rolls are ignored.
-	 - You can tick "Raw" to disregard Ranks
+	 - Only first roll of each player counts per item session.
+	 - "Raw" means ignore ranks *(MS>OS)*
      - Knows all guild loot rules besides BiS>MS
-     - Ability to delete player rolls
-     - Ability to Force a Win
+     - Delete/disable player rolls
+     - Force a Win
  	 - Optional Timer
+     - Automatical Token detection
+     - Arrows for quick history search
+     - A message bar to display commmunication between addons
      
  - Raider List
 	 - Works just like the WoWs Raid window.
@@ -44,4 +49,4 @@ discord: @fthepopulation
     - You can reassign winners historically
  
  - No data will be lost unless you delete your data in Settings
- - If you got disconnected or joined late, the addon will gather all the data you don't have
+ - Syncing: If get disconnected or joined late, the addon will gather all the data you're missing.

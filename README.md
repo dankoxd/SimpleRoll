@@ -1,53 +1,70 @@
-﻿# SimpleRoll
-This is an addon that helps organizing guild runs that use attendance system.
-Originally made for WMBOMT on Onyxia. Logic fully compatible with loot rules.
+# SimpleRoll 2.0
 
-made by zombik
-discord: @fthepopulation
+**SimpleRoll** is a lightweight, highly automated World of Warcraft addon designed to streamline loot distribution for guild runs using attendance/rank-based systems. Originally developed for **WipeMeBabyOneMoreTime** on Onyxia, its logic is fully compatible with strict guild loot rules, prioritizing ranks, handling ties, and seamlessly managing PuGs.
 
-## Usage
-[Download Here](https://github.com/dankoxd/SimpleRoll/releases/download/production/SimpleRoll.zip)
+**Author:** zombik 
+Discord: `@fthepopulation`
 
-### Regular raider
- 1. **Run update.bat** to download/update current rank database *(you can hook it to WoW.exe or copy it into shell:startup folder)*
- 2. Addon automatically opens in-game, or you can type **/sr** or **/simpleroll**
- 3. Done. When you join a raid, the addon asks if you want to delete your roll database
+---
 
-### Loot Master
- 4. Type **/sr mode sync** or **/sr mode async** to choose the mode *(async mode requires everyone to have the addon)*
- 5. Start a New Raid in Admin Menu
- 6. Go to Raider List - Scan and mark players with their role and sync the List to others. *(DPS/Heal/Tank)*
- 7. In sync mode, do /rw roll [item]  *(/rw roll 2x [item], /rw [item])*
- 8. In async mode, Alt + L.Click to add items from your bags to populate Loot Board
- 9. If you don't announce a winner for an item, it doesn't get saved into History.
- 10. At the end of the raid, export JSON data
+## ✨ Key Features
+* **Two Distinct Loot Modes:** Choose between traditional `/rw` rolling (Sync) or a modern, click-based Perpetual Loot Board (Async).
+* **Smart Sorting Engine:** Automatically sorts rolls by MS > SOS > OS, factoring in Guild Ranks, PuG thresholds, and Token priorities. 
+* **Bulletproof Syncing:** If a player disconnects or joins late, the addon automatically queries the Raid Leader and rebuilds their missing history and board data.
+* **JSON Exporting:** Silently logs all drops, winners, and rollers in the background for easy export after the raid.
+* **Auto-Updater:** Includes a batch script that automatically pulls the newest version from GitHub and wipes old database files in seconds.
 
-### Functions, Info
- - Addon Privileges; RL and assistants have access to everything.
- - Guild index 1 or lower has admin access.
+---
 
- - Main Roll Window
-	 - Only first roll of each player counts per item session.
-	 - "Raw" means ignore ranks *(MS>OS)*
-     - Knows all guild loot rules besides BiS>MS
-     - Delete/disable player rolls
-     - Force a Win
- 	 - Optional Timer
-     - Automatical Token detection
-     - Arrows for quick history search
-     - A message bar to display commmunication between addons
-     
- - Raider List
-	 - Works just like the WoWs Raid window.
-	 - Scan - imports all present people in the raid group
-	 - Add players manually by double-clicking an empty space
-	 - Remove players manually by right-clicking
-	 - Export - a text summary of all players to give points to
-     - Sync to send your Raider List for everyone 
+## 📥 Installation & Updating
 
- - Loot History, Loot Table
-	- Works the same, displays differently
-    - You can reassign winners historically
- 
- - No data will be lost unless you delete your data in Settings
- - Syncing: If get disconnected or joined late, the addon will gather all the data you're missing.
+**For Regular Raiders:**
+1. Download the [Latest Release](https://github.com/dankoxd/SimpleRoll/releases/latest/download/SimpleRoll.zip).
+2. Extract the `SimpleRoll` folder into your `Interface\AddOns\` directory.
+3. **Before every raid:** Run the included **`update.bat`** file. This will automatically download the newest guild rank database, update your addon files, and clear your local cache so you are ready to raid.
+	*(you can create a shortcut to this file and paste it to shell:startup or hook it to your WoW executable)*
+
+**In-Game Commands:**
+* Open the main window: `/sr` or `/simpleroll`
+* Open the debug log: `/sr debug`
+
+---
+
+## 👑 Loot Master Guide
+
+If you are a Raid Leader, Assistant, or Guild Officer (rank index 1 or lower), you automatically gain Admin privileges. 
+
+### Raid Setup
+1. Type **`/sr mode sync`** or **`/sr mode async`** to choose your loot distribution style. *(Note: Async mode requires the entire raid to have the addon installed).*
+2. Open the Menu and click **Admin Tools** -> **Start New Raid** to wipe previous session data.
+3. Open the **Raider List** and click **Scan** to import all present players. Mark your Tanks and Healers (for Token priority) and click **Sync** to broadcast the roster to the raid.
+
+### Running the Loot (Sync Mode)
+* Type `/rw roll [Item Link]` or `/rw roll 2x [Item Link]` to start a session.
+* Raiders type `/roll` in chat. The addon captures the rolls, automatically flags late rolls, and sorts them by rank and spec.
+* Click the **Crown Icon** to force a win, or the **Red Circle** to disable a troll roll.
+* Click the **Announce** button (Megaphone) to broadcast the winners to the raid and save the data to History. *(Items must be announced to be saved in the JSON log).*
+
+### Running the Loot (Async Perpetual Board)
+* Hold **Alt + Left-Click** on items in your bag to push them to the Perpetual Loot Board.
+* Raiders open their UI and click the visual buttons (MS/OS/SOS) to submit their rolls silently.
+* Select an item on the board and click the **Crown Icon** next to a roller's name to award the item and broadcast it to the raid.
+* Use the **Delete** or **Bank/DE** buttons to manage unwanted items.
+
+---
+
+## ⚙️ How the Sorting Engine Works
+The addon's brain uses a strict hierarchy to organize rolls. It will never randomly sort players; it follows these exact steps:
+
+1. **Spec Tier:** Main Spec (100) beats Shaman OS (101), which beats Off-Spec (99).
+2. **The PuG Threshold:** If PuG outrolls everyone, he wins. If he outrolls only some of the people, it sets up a threshold.
+3. **Guild Rank:** If multiple players qualify, the highest Guild Rank (e.g., Rank 0 > Rank 1) instantly wins, regardless of the numerical roll.
+4. **Token Priority:** For tier tokens: Tanks > Healers > DPS.
+5. **Numerical Roll:** If players are tied in Spec, Rank, and Role, the highest numerical roll wins.
+
+---
+
+## 📊 Data Management
+* **Loot History & Table:** View past rolls and explicitly reassign winners if a mistake was made. Reassigning a winner retroactively updates the JSON log.
+* **JSON Exporting:** Open the Menu -> Admin Tools -> Export JSON. This generates a clean text block of every item awarded, the reason it was awarded, and every player who rolled on it. 
+* **Safe Storage:** No data is ever lost unless you manually click "Wipe All History & Data" in the Settings menu or accept the wipe prompt when joining a new raid.

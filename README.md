@@ -3,6 +3,7 @@
 **SimpleRoll** is a lightweight, highly automated World of Warcraft addon designed to streamline loot distribution for guild runs using attendance/rank-based systems. Originally developed for **WipeMeBabyOneMoreTime** on Onyxia, its logic is fully compatible with strict guild loot rules, prioritizing ranks, handling ties, and seamlessly managing PuGs.
 
 **Author:** zombik 
+
 Discord: `@fthepopulation`
 
 ---
